@@ -144,4 +144,38 @@ onchain/
   programs/
     zkpnote/
       src/lib.rs    # Anchor smart contract
+
+packages/
+  mcp-server/       # MCP server for AI agent integration
+    src/index.ts    # 8 tools: save, read, update, delete, list, folders, verify, search
 ```
+
+## MCP Server
+
+ZKPnote includes a Model Context Protocol (MCP) server that enables AI assistants (e.g., Claude Desktop) to interact with a user's vault programmatically.
+
+### Architecture
+- **Transport:** stdio (local process, no network exposure)
+- **SDK:** `@modelcontextprotocol/sdk`
+- **Key derivation:** Same HKDF path as the main app — derives encryption and auth keys from `ZKPNOTE_SEED_PHRASE` env var
+- **API target:** `https://zkpnote.com` by default (configurable via `ZKPNOTE_API_URL`)
+
+### Available Tools
+| Tool | Description |
+|------|-------------|
+| `save_note` | Create a new encrypted note |
+| `list_notes` | List all notes in the vault |
+| `read_note` | Read and decrypt a specific note |
+| `update_note` | Update an existing note |
+| `delete_note` | Delete a note |
+| `list_folders` | List all folders |
+| `verify_content` | Check if content has been proved on-chain |
+| `search_similar` | Search for similar proved content |
+
+## Rate Limiting
+
+All API routes are rate-limited using Upstash Redis (`@upstash/ratelimit`) for distributed enforcement across Vercel edge instances. In local development, falls back to an in-memory store.
+
+## Solana RPC Proxy
+
+The `/api/rpc` route proxies Solana RPC calls from the browser to prevent exposing the RPC endpoint directly. A whitelist restricts access to 11 permitted methods (e.g., `getBalance`, `getLatestBlockhash`, `sendTransaction`). All other methods return 403.

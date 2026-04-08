@@ -100,6 +100,17 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 - If a content theft dispute arises, the proof with the earlier `created_at` timestamp establishes priority
 - Proofs are stored in the Supabase `proofs` table for fast lookup and similarity search via the `/api/proof` endpoint
 
+## API Security
+
+### Rate Limiting
+All API routes (`/api/vault`, `/api/marketplace`, `/api/proof`, `/api/rpc`) are rate-limited using Upstash Redis (`@upstash/ratelimit`). This provides distributed rate limiting across Vercel edge instances — requests from the same IP are tracked globally, not per-instance. In local development, falls back to an in-memory store.
+
+### RPC Proxy Whitelist
+Browser-side Solana RPC calls are routed through `/api/rpc` to avoid exposing the RPC endpoint directly. The proxy enforces a strict whitelist of 11 permitted methods:
+- `getBalance`, `getLatestBlockhash`, `getRecentBlockhash`, `sendTransaction`, `confirmTransaction`, `getTransaction`, `getSignatureStatuses`, `getAccountInfo`, `getMinimumBalanceForRentExemption`, `requestAirdrop`, `getMultipleAccounts`
+
+Any method not on this list returns HTTP 403. This prevents abuse of the RPC endpoint for arbitrary Solana queries.
+
 ## Threat Model
 
 | Threat | Mitigation |
@@ -113,6 +124,8 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 | Fee manipulation | Fee basis points stored on-chain; only authority can update |
 | Replay attacks | API auth uses fresh signatures with timestamp validation |
 | Session hijacking via cached signature | Phantom signature cached in sessionStorage only; cleared on tab close |
+| API abuse / DDoS | Distributed rate limiting via Upstash Redis across all edge instances |
+| RPC endpoint abuse | Whitelist restricts Solana RPC proxy to 11 permitted methods; all others return 403 |
 
 ## Limitations
 
