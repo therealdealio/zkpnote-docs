@@ -233,3 +233,115 @@ This prevents buyers from reselling purchased content, even if they copy-paste i
 ### Purchase Tagging
 
 Notes acquired through marketplace purchases are tagged with `purchasedFrom` (the listing ID). Tagged notes cannot be listed for sale — the sell button is disabled in the UI, and the API rejects the request.
+
+---
+
+## Proof API Reference
+
+Proof operations use `POST /api/proof` with an `action` field in the JSON body. This endpoint handles storing, verifying, and searching per-note proofs.
+
+### `store` — Store a Proof Record
+
+Upserts a proof record into the Supabase `proofs` table after the on-chain `register_proof` transaction is confirmed.
+
+**Request:**
+```json
+{
+  "action": "store",
+  "walletAddress": "Ad67Rwg...",
+  "noteHash": "a1b2c3d4e5f6...",
+  "title": "My Original Note",
+  "content": "# Full note content...",
+  "txSignature": "5KtR9..."
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `walletAddress` | string | Yes | Solana wallet address of the proof owner |
+| `noteHash` | string | Yes | Hex-encoded SHA-256 hash of the note |
+| `title` | string | Yes | Note title (stored for search/display) |
+| `content` | string | Yes | Note content (stored for similarity search) |
+| `txSignature` | string | Yes | On-chain transaction signature |
+
+**Response:**
+```json
+{ "success": true }
+```
+
+### `verify` — Verify a Proof by Hash
+
+Performs an exact hash lookup in the `proofs` table. Returns the proof details if a matching hash is found.
+
+**Request:**
+```json
+{
+  "action": "verify",
+  "noteHash": "a1b2c3d4e5f6..."
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `noteHash` | string | Yes | Hex-encoded SHA-256 hash to look up |
+
+**Response (found):**
+```json
+{
+  "found": true,
+  "proof": {
+    "walletAddress": "Ad67Rwg...",
+    "noteHash": "a1b2c3d4e5f6...",
+    "title": "My Original Note",
+    "txSignature": "5KtR9...",
+    "createdAt": "2026-04-01T12:00:00Z"
+  }
+}
+```
+
+**Response (not found):**
+```json
+{ "found": false }
+```
+
+### `search` — Similarity Search
+
+Performs a trigram similarity search against stored proof titles and content. Returns ranked results with similarity scores.
+
+**Request:**
+```json
+{
+  "action": "search",
+  "query": "solana smart contract guide"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `query` | string | Yes | Text to search for similar proofs |
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "walletAddress": "Ad67Rwg...",
+      "noteHash": "a1b2c3d4e5f6...",
+      "title": "Solana Smart Contract Tutorial",
+      "txSignature": "5KtR9...",
+      "similarity": 0.82,
+      "createdAt": "2026-04-01T12:00:00Z"
+    },
+    {
+      "walletAddress": "Bx82Kpq...",
+      "noteHash": "f6e5d4c3b2a1...",
+      "title": "Building on Solana",
+      "txSignature": "3JmP7...",
+      "similarity": 0.65,
+      "createdAt": "2026-03-28T08:30:00Z"
+    }
+  ]
+}
+```
+
+Results are ordered by similarity score (highest first). The similarity value ranges from 0.0 to 1.0.

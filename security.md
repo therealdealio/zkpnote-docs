@@ -19,7 +19,7 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 - Note ID, folder ID (UUIDs, non-sensitive)
 - Timestamps (createdAt, updatedAt)
 - Folder hierarchy (parentId relationships)
-- On-chain vault hash (SHA-256 of the encrypted data, not the plaintext)
+- On-chain proof hash (SHA-256 of the plaintext note, not the encryption key)
 
 ## Key Management
 
@@ -30,7 +30,7 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 - The seed phrase is the single root of trust; losing it means losing access
 
 ### Phantom Mode
-- User signs a deterministic message: `"ChainNotes-vault-encryption-key-v1"`
+- User signs a deterministic message: `"ZKPnote-vault-encryption-key-v1"`
 - Ed25519 signatures are deterministic, so the same wallet always produces the same 64-byte signature
 - First 32 bytes of the signature derive the encryption key
 - Last 32 bytes derive an auth keypair for silent API authentication
@@ -38,16 +38,29 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 
 ### Key Storage
 - Keys are held in memory only (React state)
-- No keys are persisted to localStorage, sessionStorage, or cookies
+- No keys are persisted to localStorage or cookies
 - Locking the vault clears all key material from memory
 - Page refresh requires re-entering the seed phrase or reconnecting Phantom
+
+### Phantom Signature Caching
+- The Phantom wallet signature used for key derivation is cached in `sessionStorage`
+- This avoids requiring a Phantom popup on every page refresh within the same session
+- `sessionStorage` is scoped to the browser tab and is automatically cleared when the tab or browser window is closed
+- This is the only value stored in `sessionStorage`; no encryption keys or private keys are cached
 
 ## On-Chain Security
 
 ### Access Control
-- **VaultAccount:** PDA seeded with `["vault", owner]` + `has_one = owner` constraint. Only the vault owner can update their vault hash.
+- **NoteProof:** PDA seeded with `["proof", note_hash]`. The first wallet to register a given hash owns the proof. Once created, the proof is immutable.
 - **ProgramConfig:** PDA seeded with `["config"]` + `has_one = authority`. Only the authority (deployer) can update treasury/fees.
 - **ExecuteSale:** Treasury account validated on-chain against config via `constraint = treasury.key() == config.treasury`.
+
+### Per-Note Proof System
+- Each note can have an on-chain proof registered via `register_proof`
+- The proof hash is `SHA-256(title + "\n" + content)`, computed client-side
+- PDA derivation from the hash ensures exactly one proof can exist per unique content
+- First-to-register wins: once a proof is created, no other wallet can claim the same hash
+- This prevents content theft claims — the on-chain timestamp proves who registered the content first
 
 ### Arithmetic Safety
 - Fee calculation uses `checked_mul` and `checked_sub` to prevent overflow/underflow
@@ -64,6 +77,13 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 - The server verifies the signature against the claimed public key
 - In Phantom mode, the auth keypair is derived from the wallet signature, enabling silent API calls without Phantom popups
 
+## Proof Verification Privacy
+
+- The `/verify` page is public and requires no authentication
+- Hash computation happens entirely client-side — the plaintext content entered for verification never leaves the browser
+- Only the computed hash is sent to the server for lookup
+- This means a user can verify whether content has been registered without exposing the content to the server
+
 ## Content Protection
 
 ### Similarity Detection
@@ -75,6 +95,11 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 - Notes acquired from the marketplace are tagged with the source listing ID
 - Tagged notes are blocked from being listed for sale at both the client and server level
 
+### Per-Note Proof
+- On-chain proofs provide cryptographic evidence of authorship with a Solana-timestamped record
+- If a content theft dispute arises, the proof with the earlier `created_at` timestamp establishes priority
+- Proofs are stored in the Supabase `proofs` table for fast lookup and similarity search via the `/api/proof` endpoint
+
 ## Threat Model
 
 | Threat | Mitigation |
@@ -83,9 +108,11 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 | Man-in-the-middle | All encryption happens client-side before transmission |
 | Unauthorized vault access | Requires seed phrase or Phantom wallet signature |
 | Content theft via marketplace | Similarity detection + purchase tagging |
+| Content theft claims | Per-note on-chain proof with first-to-register timestamp |
 | Treasury theft | Treasury address validated on-chain; only authority can change it |
 | Fee manipulation | Fee basis points stored on-chain; only authority can update |
 | Replay attacks | API auth uses fresh signatures with timestamp validation |
+| Session hijacking via cached signature | Phantom signature cached in sessionStorage only; cleared on tab close |
 
 ## Limitations
 
@@ -93,3 +120,4 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 - **Similarity detection:** Trigram-based comparison may not catch content that has been substantially rewritten
 - **Off-chain bids:** Auction bids are not escrowed on-chain; the winner pays at settlement
 - **No key rotation:** Changing the seed phrase creates a new vault; migrating an existing vault to a new key is not currently supported
+- **Proof immutability:** Once a proof is registered on-chain, it cannot be updated or deleted. If content changes, a new proof must be registered with the updated hash.

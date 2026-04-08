@@ -1,43 +1,32 @@
 # Smart Contract Reference
 
-ZKPnote uses an Anchor-based Solana program for on-chain vault verification and marketplace payments.
+ZKPnote uses an Anchor-based Solana program (`zkpnote`) for per-note proof registration and marketplace payments.
 
-**Program ID:** `9AbLiwQ82manor3YyArrQhhpxPCFha5xbF187EtdDae5`
+**Program ID:** `Ad67RwgTaeh77UQ5oZXAwt3fTvg3u5oNxNfcc3tGJLbc`
 **Anchor Version:** 0.31.1
 **Solana Version:** 2.x
 
 ## Instructions
 
-### `initialize_vault`
+The program has 4 instructions: `register_proof`, `initialize_config`, `update_config`, and `execute_sale`.
 
-Creates a new vault record on-chain for a user. Stores a SHA-256 hash of the encrypted vault data as a verification anchor.
+### `register_proof`
+
+Registers a per-note proof on-chain. The proof PDA is derived from the note's SHA-256 hash, establishing first-to-register ownership of the content.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `vault_hash` | `[u8; 32]` | SHA-256 hash of the encrypted vault |
-| `note_count` | `u32` | Number of notes in the vault |
+| `note_hash` | `[u8; 32]` | SHA-256 hash of the note (title + "\n" + content) |
 
 **Accounts:**
 | Account | Type | Description |
 |---------|------|-------------|
-| `vault` | PDA `["vault", owner]` | Vault account (init) |
-| `owner` | Signer, mut | Wallet creating the vault |
+| `proof` | PDA `["proof", note_hash]` | NoteProof account (init) |
+| `owner` | Signer, mut | Wallet registering the proof |
 | `system_program` | Program | System program |
 
-### `update_vault`
-
-Updates the vault hash after a sync.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `vault_hash` | `[u8; 32]` | New SHA-256 hash |
-| `note_count` | `u32` | Updated note count |
-
-**Accounts:**
-| Account | Type | Description |
-|---------|------|-------------|
-| `vault` | PDA `["vault", owner]` | Vault account (mut, has_one = owner) |
-| `owner` | Signer | Vault owner |
+**Errors:**
+- `ZkpnoteError::InvalidHash` — hash must be exactly 32 bytes
 
 ### `initialize_config`
 
@@ -97,15 +86,16 @@ Uses checked arithmetic (`checked_mul`, `checked_sub`) for overflow protection.
 
 ## Account Structures
 
-### VaultAccount (81 bytes + 8 discriminator)
+### NoteProof (73 bytes + 8 discriminator)
 
 | Field | Type | Size | Description |
 |-------|------|------|-------------|
-| `owner` | Pubkey | 32 | Wallet that owns this vault |
-| `vault_hash` | [u8; 32] | 32 | SHA-256 hash of encrypted vault |
-| `note_count` | u32 | 4 | Number of notes |
-| `updated_at` | i64 | 8 | Unix timestamp of last update |
+| `owner` | Pubkey | 32 | Wallet that registered this proof |
+| `note_hash` | [u8; 32] | 32 | SHA-256 hash of the note content |
+| `created_at` | i64 | 8 | Unix timestamp of proof registration |
 | `bump` | u8 | 1 | PDA bump seed |
+
+**PDA Seeds:** `[b"proof", note_hash.as_ref()]`
 
 ### ProgramConfig (67 bytes + 8 discriminator)
 
@@ -120,12 +110,13 @@ Uses checked arithmetic (`checked_mul`, `checked_sub`) for overflow protection.
 
 | Code | Name | Message |
 |------|------|---------|
-| 6000 | InvalidTreasury | Invalid treasury account |
-| 6001 | InvalidPrice | Price must be greater than zero |
+| 6000 | InvalidHash | Hash must be 32 bytes |
+| 6001 | InvalidTreasury | Invalid treasury account |
+| 6002 | InvalidPrice | Price must be greater than zero |
 
 ## Security Properties
 
-- **PDA-based access control:** Vault accounts are derived from `["vault", owner]`, ensuring only the owner can update their vault
+- **PDA-based proof uniqueness:** NoteProof accounts are derived from `["proof", note_hash]`, ensuring exactly one proof can exist per unique hash. The first wallet to register a hash owns the proof.
 - **Authority enforcement:** Config updates require the original authority signer via `has_one` constraint
 - **Treasury validation:** `execute_sale` validates the treasury account matches the on-chain config via constraint
 - **Atomic transfers:** Payment splitting happens in a single transaction; if either transfer fails, both revert

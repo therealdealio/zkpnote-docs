@@ -25,10 +25,10 @@ Technical documentation for developers building on or integrating with ZKPnote.
 ## Program ID
 
 ```
-Adf5PvTCdNE8fC7gU9sUrE31hebcsht4e1Y53jHCTAZk
+Ad67RwgTaeh77UQ5oZXAwt3fTvg3u5oNxNfcc3tGJLbc
 ```
 
-(Solana devnet)
+(Solana devnet — program name: `zkpnote`)
 
 ## License
 
