@@ -2,6 +2,8 @@
 
 Technical documentation for developers building on or integrating with ZKPnote.
 
+**Live deployment:** [zkpnote.vercel.app](https://zkpnote.vercel.app)
+
 ## Contents
 
 - [Architecture Overview](./architecture.md)
@@ -17,14 +19,16 @@ Technical documentation for developers building on or integrating with ZKPnote.
 | Encryption | libsodium (XChaCha20-Poly1305), AES-256 key derivation |
 | Blockchain | Solana, Anchor Framework 0.31.1 |
 | Wallet | BIP-39 seed phrase + Phantom browser extension |
-| Storage | IndexedDB (client), encrypted cloud sync (server) |
-| Markdown | react-markdown with remark-gfm, rehype-highlight |
+| Storage | IndexedDB (client), Supabase (server) |
+| Editor | Tiptap (rich text), react-markdown with remark-gfm, rehype-highlight |
 
 ## Program ID
 
 ```
-9AbLiwQ82manor3YyArrQhhpxPCFha5xbF187EtdDae5
+Adf5PvTCdNE8fC7gU9sUrE31hebcsht4e1Y53jHCTAZk
 ```
+
+(Solana devnet)
 
 ## License
 

@@ -2,19 +2,21 @@
 
 ZKPnote follows a privacy-first architecture where all sensitive operations happen client-side. The server never has access to plaintext note content.
 
+**Live deployment:** [zkpnote.vercel.app](https://zkpnote.vercel.app)
+
 ## System Diagram
 
 ```
 User Device                          Server                    Solana
 +-----------------+                +-----------+            +-----------+
 | Seed Phrase     |                |           |            |           |
-|   |             |                | Encrypted |            | Vault PDA |
-|   v             |                | Vault     |            | (hash +   |
-| Key Derivation  |    encrypted   | Storage   |            |  owner +  |
-|   |         |   |  ------------> |           |            |  count)   |
-|   v         v   |                +-----------+            |           |
-| Enc Key   Wallet|                                         | Config    |
-|   |         |   |      signed tx                          | PDA      |
+|   |             |                | Supabase  |            | Vault PDA |
+|   v             |                | (vaults,  |            | (hash +   |
+| Key Derivation  |    encrypted   | listings, |            |  owner +  |
+|   |         |   |  ------------> | purchases,|            |  count)   |
+|   v         v   |                | bids,     |            |           |
+| Enc Key   Wallet|                | shares)   |            | Config    |
+|   |         |   |      signed tx +-----------+            | PDA      |
 |   v         |   |  ---------------------------------------->         |
 | Encrypt/    |   |                                         | (treasury |
 | Decrypt     |   |                                         |  + fee)  |
@@ -61,23 +63,23 @@ In Phantom mode, the connected wallet is used for on-chain transactions, while t
 ## Data Flow
 
 ### Writing a Note
-1. User types in the markdown editor
+1. User types in the rich text editor (Tiptap) or markdown editor
 2. Note is encrypted client-side with XChaCha20-Poly1305
 3. Encrypted note is stored in IndexedDB
-4. Auto-sync pushes encrypted data to cloud storage
+4. Auto-sync pushes encrypted data to Supabase
 5. SHA-256 hash of the vault is written on-chain (Solana)
 
 ### Reading a Note
-1. Pull encrypted vault from cloud storage
+1. Pull encrypted vault from Supabase
 2. Decrypt client-side with the encryption key derived from seed phrase
 3. Store decrypted notes in IndexedDB for fast access
-4. Display in the markdown editor
+4. Display in the rich text editor (Tiptap) or markdown editor
 
 ### Marketplace Purchase
 1. Buyer clicks "Buy Now" on a listing
 2. `execute_sale` instruction is called on-chain
 3. Solana program atomically splits payment: 98% to seller, 2% to treasury
-4. Server records the purchase and releases the encrypted content
+4. Supabase records the purchase and releases the encrypted content
 5. Content is decrypted and added to the buyer's vault
 
 ## On-Chain Accounts
@@ -86,6 +88,16 @@ In Phantom mode, the connected wallet is used for on-chain transactions, while t
 |---------|-------|-------------|
 | VaultAccount | `["vault", owner]` | Stores vault hash, note count, timestamp |
 | ProgramConfig | `["config"]` | Treasury address, fee basis points, authority |
+
+## Supabase Tables
+
+| Table | Description |
+|-------|-------------|
+| `vaults` | Encrypted vault blobs keyed by owner public key |
+| `listings` | Marketplace listings (price, seller, metadata, encrypted content) |
+| `purchases` | Records of completed marketplace purchases |
+| `bids` | Open and accepted bids on marketplace listings |
+| `shares` | Shared note access grants between users |
 
 ## Folder Structure (Application)
 
@@ -101,7 +113,7 @@ src/
     crypto.ts       # Encryption/decryption (libsodium)
     keyManager.ts   # Key derivation, wallet abstractions
     solana.ts       # Anchor program client
-    sync.ts         # Cloud sync (push/pull)
+    sync.ts         # Supabase sync (push/pull)
     storage.ts      # IndexedDB operations
     auth.ts         # API authentication
   types/            # TypeScript interfaces
