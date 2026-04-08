@@ -69,6 +69,8 @@ In Phantom mode, the connected wallet is used for on-chain transactions, while t
 4. Auto-sync pushes encrypted data to Supabase
 5. SHA-256 hash of the vault is written on-chain (Solana)
 
+**Offline support:** Notes are saved to IndexedDB (browser local storage) immediately on every keystroke. Cloud sync to Supabase happens on explicit sync or auto-sync. This means the app works offline — notes persist locally until connectivity is available.
+
 ### Reading a Note
 1. Pull encrypted vault from Supabase
 2. Decrypt client-side with the encryption key derived from seed phrase
