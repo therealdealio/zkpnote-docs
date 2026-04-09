@@ -28,25 +28,21 @@ User Device                          Server                    Solana
 
 ## Key Derivation
 
+Both login methods produce the **same Solana address, encryption key, and auth keypair** for the same wallet — so users can switch between seed phrase and Phantom and always access the same vault.
+
 ### Seed Phrase Mode
 ```
 BIP-39 Mnemonic (12 words)
         |
         v
     64-byte seed
-    /          \
-First 32B     Last 32B
-    |              |
-    v              v
-Encryption    Solana Keypair
-Key           (wallet + auth)
-```
-
-### Phantom Mode
-```
-Phantom Wallet
         |
-  sign("ZKPnote-vault-encryption-key-v1")
+  BIP-44 derivation (m/44'/501'/0'/0')
+        |
+        v
+  Solana Keypair (same address as Phantom)
+        |
+  sign("ChainNotes-vault-encryption-key-v1")
         |
         v
   64-byte Ed25519 signature (deterministic)
@@ -58,7 +54,23 @@ Encryption    Auth Keypair
 Key           (silent API auth)
 ```
 
-In Phantom mode, the connected wallet is used for on-chain transactions, while the derived auth keypair handles API authentication without popup prompts.
+### Phantom Mode
+```
+Phantom Wallet
+        |
+  sign("ChainNotes-vault-encryption-key-v1")
+        |
+        v
+  64-byte Ed25519 signature (deterministic)
+    /          \
+First 32B     Last 32B
+    |              |
+    v              v
+Encryption    Auth Keypair
+Key           (silent API auth)
+```
+
+The Solana keypair is derived using BIP-44 (`m/44'/501'/0'/0'`) via `ed25519-hd-key`, matching Phantom and all standard Solana wallets. Both modes then sign the same deterministic message to derive identical encryption and auth keys. In Phantom mode, the connected wallet handles on-chain transaction signing; in seed phrase mode, the BIP-44 keypair signs directly.
 
 ### Phantom Signature Caching
 

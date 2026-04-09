@@ -23,17 +23,22 @@ ZKPnote is designed with a zero-knowledge architecture. The server and blockchai
 
 ## Key Management
 
+### Unified Derivation
+Both seed phrase and Phantom modes produce the **same encryption key and auth keypair** for the same wallet. This means a user can log in either way and access the same vault with the same notes.
+
 ### Seed Phrase Mode
 - 12-word BIP-39 mnemonic generates a 64-byte seed
-- First 32 bytes derive the encryption key via HKDF
-- Last 32 bytes derive the Solana keypair
+- BIP-44 derivation at `m/44'/501'/0'/0'` produces the Solana keypair (same address as Phantom and all standard Solana wallets)
+- The keypair signs a deterministic message: `"ChainNotes-vault-encryption-key-v1"`
+- First 32 bytes of the signature derive the encryption key via HKDF
+- Last 32 bytes derive an auth keypair for silent API authentication
 - The seed phrase is the single root of trust; losing it means losing access
 
 ### Phantom Mode
-- User signs a deterministic message: `"ZKPnote-vault-encryption-key-v1"`
+- User signs the same deterministic message: `"ChainNotes-vault-encryption-key-v1"`
 - Ed25519 signatures are deterministic, so the same wallet always produces the same 64-byte signature
-- First 32 bytes of the signature derive the encryption key
-- Last 32 bytes derive an auth keypair for silent API authentication
+- First 32 bytes of the signature derive the encryption key (identical to seed phrase mode)
+- Last 32 bytes derive an auth keypair for silent API authentication (identical to seed phrase mode)
 - The connected Phantom wallet handles on-chain transaction signing
 
 ### Key Storage
