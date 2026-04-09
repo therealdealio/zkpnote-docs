@@ -106,6 +106,27 @@ To avoid requiring users to approve a Phantom signature popup on every page load
 4. Hash is looked up against the Supabase `proofs` table via the `/api/proof` endpoint
 5. If a match is found, the proof details (owner, timestamp, tx signature) are displayed
 
+### Note Reordering
+1. User drags a note via the grip handle in the sidebar
+2. Drop indicator shows the target position
+3. On drop, all notes in the folder receive updated `sortOrder` values (index-based)
+4. Updated notes are encrypted and saved to IndexedDB
+5. Auto-sync pushes the new order to Supabase
+6. Notes with `sortOrder: null` fall back to `updatedAt` sorting (backward-compatible)
+
+### Pop-Out Floating Window
+1. User clicks the pop-out button in the editor toolbar
+2. App creates a Document Picture-in-Picture window (Chrome/Edge) or falls back to `window.open()` (Safari/Firefox)
+3. The floating window renders its own title input, content textarea, and word count
+4. Edits in the floating window are debounced and synced back to the main vault via `debouncedSave`
+5. The floating window is cleaned up automatically when the user switches notes or closes the main app
+
+### Proof Recovery
+1. User provides a transaction signature from a previously registered proof
+2. `/api/proof` `recover` action looks up the proof in the `proofs` table
+3. Ownership is verified (wallet address must match the proof's owner)
+4. Full note content is returned for the user to restore to their vault
+
 ### Marketplace Purchase
 1. Buyer clicks "Buy Now" on a listing
 2. `execute_sale` instruction is called on-chain

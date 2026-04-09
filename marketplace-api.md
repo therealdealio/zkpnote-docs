@@ -208,9 +208,9 @@ Returns all purchase transactions and aggregate statistics.
 }
 ```
 
-### `delete` — Delete a Listing
+### `delete` — Cancel / Unlist a Listing
 
-Seller-only. Removes a listing from the marketplace.
+Seller-only. Removes a listing from the marketplace. For "original" listings (where the note was removed from the seller's vault at listing time), the response includes the full note content so the client can restore it to the vault.
 
 **Request:**
 ```json
@@ -220,6 +220,23 @@ Seller-only. Removes a listing from the marketplace.
   "sellerAddress": "..."
 }
 ```
+
+**Validations:**
+- Listing must exist
+- Caller must be the seller (seller_address must match)
+
+**Response:**
+```json
+{
+  "ok": true,
+  "restored": {
+    "noteTitle": "My Guide",
+    "noteContent": "# Full content..."
+  }
+}
+```
+
+The `restored` field is `null` for "copy" and "auction" listings. For "original" listings, it contains the note title and content so the client can recreate the note in the seller's vault.
 
 ## Content Protection
 
@@ -351,3 +368,70 @@ Performs a trigram similarity search against stored proof titles and content. Re
 ```
 
 Results are ordered by similarity score (highest first). The similarity value ranges from 0.0 to 1.0.
+
+### `recover` — Recover Note Content from Proof
+
+Owner-only. Retrieves the full note content stored in a proof record by its transaction signature. Useful for recovering lost notes when the local vault copy has been deleted.
+
+**Request:**
+```json
+{
+  "action": "recover",
+  "txSignature": "5KtR9...",
+  "walletAddress": "Ad67Rwg..."
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `txSignature` | string | Yes | On-chain transaction signature of the proof |
+| `walletAddress` | string | Yes | Wallet address of the proof owner (for ownership verification) |
+
+**Response (found):**
+```json
+{
+  "found": true,
+  "proof": {
+    "title": "My Original Note",
+    "content": "# Full note content...",
+    "noteHash": "a1b2c3d4e5f6...",
+    "txSignature": "5KtR9...",
+    "createdAt": "2026-04-01T12:00:00Z"
+  }
+}
+```
+
+**Response (not found or not owner):**
+```json
+{ "found": false }
+```
+
+### `list` — List All Proofs for a Wallet
+
+Returns all proof records associated with a given wallet address.
+
+**Request:**
+```json
+{
+  "action": "list",
+  "walletAddress": "Ad67Rwg..."
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `walletAddress` | string | Yes | Wallet address to list proofs for |
+
+**Response:**
+```json
+{
+  "proofs": [
+    {
+      "noteHash": "a1b2c3d4e5f6...",
+      "title": "My Original Note",
+      "txSignature": "5KtR9...",
+      "createdAt": "2026-04-01T12:00:00Z"
+    }
+  ]
+}
+```

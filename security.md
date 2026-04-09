@@ -102,6 +102,11 @@ Two-tier similarity checking protects content originality:
 - **Proof tier (90%):** New listings are also compared against all on-chain proved content from other authors. Listings with >= 90% similarity to another author's proved work are rejected, even if that content was never listed for sale.
 - Sellers are excluded from both comparisons against their own content (same wallet address)
 
+### Listing Cancellation
+- Sellers can cancel their own listings; the API verifies seller ownership before deletion
+- For "original" listings (note removed from vault at listing time), the API returns the full note content so the client can restore it to the seller's vault
+- Cancellation of copies/auction listings does not affect the seller's local vault
+
 ### Purchase Tagging
 - Notes acquired from the marketplace are tagged with the source listing ID
 - Tagged notes are blocked from being listed for sale at both the client and server level
