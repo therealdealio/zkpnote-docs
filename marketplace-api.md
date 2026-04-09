@@ -38,7 +38,9 @@ Create a new marketplace listing.
 
 **Proof Required:** The note must be proved on-chain before listing. The `proofTx` field (on-chain transaction signature) is required; the API returns 400 if it is missing.
 
-**Similarity Check:** Before creating, the API compares content against all existing listings from other sellers using trigram-based Jaccard similarity. Listings with 70%+ similarity to existing content are rejected.
+**Similarity Check:** Before creating, the API runs two similarity checks:
+1. **Marketplace (70%):** Content is compared against all existing marketplace listings from other sellers using trigram-based Jaccard similarity. Listings with 70%+ similarity are rejected.
+2. **Proof (90%):** Content is also compared against all on-chain proved notes from other authors. Listings with 90%+ similarity to another author's proved work are rejected, even if that content was never listed for sale.
 
 **Response:**
 ```json
@@ -228,9 +230,11 @@ When a new listing is created, its content is compared against all existing list
 1. Text is normalized (lowercase, markdown syntax stripped, whitespace collapsed)
 2. Word trigrams are generated from both texts
 3. Jaccard similarity coefficient is computed: `|A intersection B| / |A union B|`
-4. If similarity >= 70%, the listing is rejected
+4. Two thresholds are applied:
+   - **>= 70%** similarity against existing marketplace listings → listing rejected
+   - **>= 90%** similarity against on-chain proved content from other authors → listing rejected
 
-This prevents buyers from reselling purchased content, even if they copy-paste it into a new note with minor edits.
+This prevents buyers from reselling purchased content, even if they copy-paste it into a new note with minor edits. The proof-tier check also protects authors who have proved their work but haven't listed it for sale.
 
 ### Purchase Tagging
 

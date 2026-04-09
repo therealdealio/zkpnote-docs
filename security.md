@@ -97,9 +97,10 @@ Both seed phrase and Phantom modes produce the **same encryption key and auth ke
 - This ensures every marketplace listing has verifiable on-chain provenance before any commercial activity
 
 ### Similarity Detection
-- New marketplace listings are compared against all existing listings using word-trigram Jaccard similarity
-- Listings with >= 70% similarity to another seller's content are rejected
-- Sellers can re-list their own content (same seller address is excluded from comparison)
+Two-tier similarity checking protects content originality:
+- **Marketplace tier (70%):** New listings are compared against all existing marketplace listings using word-trigram Jaccard similarity. Listings with >= 70% similarity to another seller's content are rejected.
+- **Proof tier (90%):** New listings are also compared against all on-chain proved content from other authors. Listings with >= 90% similarity to another author's proved work are rejected, even if that content was never listed for sale.
+- Sellers are excluded from both comparisons against their own content (same wallet address)
 
 ### Purchase Tagging
 - Notes acquired from the marketplace are tagged with the source listing ID
