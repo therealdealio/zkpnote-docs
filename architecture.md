@@ -180,7 +180,7 @@ onchain/
 
 packages/
   mcp-server/       # MCP server for AI agent integration
-    src/index.ts    # 8 tools: save, read, update, delete, list, folders, verify, search
+    src/index.ts    # 15 tools: vault CRUD, marketplace, proofs, verify, search
 ```
 
 ## MCP Server
@@ -193,7 +193,9 @@ ZKPnote includes a Model Context Protocol (MCP) server that enables AI assistant
 - **Key derivation:** Same HKDF path as the main app — derives encryption and auth keys from `ZKPNOTE_SEED_PHRASE` env var
 - **API target:** `https://zkpnote.com` by default (configurable via `ZKPNOTE_API_URL`)
 
-### Available Tools
+### Available Tools (15)
+
+**Vault**
 | Tool | Description |
 |------|-------------|
 | `save_note` | Create a new encrypted note |
@@ -202,8 +204,23 @@ ZKPnote includes a Model Context Protocol (MCP) server that enables AI assistant
 | `update_note` | Update an existing note |
 | `delete_note` | Delete a note |
 | `list_folders` | List all folders |
+| `reorder_notes` | Set custom sort order for notes |
+
+**Proofs**
+| Tool | Description |
+|------|-------------|
 | `verify_content` | Check if content has been proved on-chain |
 | `search_similar` | Search for similar proved content |
+| `list_proofs` | List all on-chain proofs for the wallet |
+| `recover_note` | Recover lost note content from a proof tx, optionally restore to vault |
+
+**Marketplace**
+| Tool | Description |
+|------|-------------|
+| `browse_marketplace` | Browse/search marketplace listings with filters |
+| `get_listing` | Get details of a specific listing |
+| `cancel_listing` | Cancel own listing (restores note for originals) |
+| `marketplace_analytics` | Get sales stats and transaction history |
 
 ## Rate Limiting
 
