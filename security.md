@@ -91,6 +91,11 @@ Both seed phrase and Phantom modes produce the **same encryption key and auth ke
 
 ## Content Protection
 
+### Proof Required Before Listing
+- Notes must be proved on-chain before they can be listed on the marketplace
+- Enforced at three levels: UI (alert prompt), client (VaultContext validation), and server (API returns 400 if `proofTx` is missing)
+- This ensures every marketplace listing has verifiable on-chain provenance before any commercial activity
+
 ### Similarity Detection
 - New marketplace listings are compared against all existing listings using word-trigram Jaccard similarity
 - Listings with >= 70% similarity to another seller's content are rejected

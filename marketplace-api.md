@@ -36,6 +36,8 @@ Create a new marketplace listing.
 | `auctionDuration` | number | No | Auction duration in hours (auction only) |
 | `reservePrice` | number | No | Minimum price to sell (auction only) |
 
+**Proof Required:** The note must be proved on-chain before listing. The `proofTx` field (on-chain transaction signature) is required; the API returns 400 if it is missing.
+
 **Similarity Check:** Before creating, the API compares content against all existing listings from other sellers using trigram-based Jaccard similarity. Listings with 70%+ similarity to existing content are rejected.
 
 **Response:**
