@@ -8,7 +8,7 @@ ZKPnote uses an Anchor-based Solana program (`zkpnote`) for per-note proof regis
 
 ## Instructions
 
-The program has 4 instructions: `register_proof`, `initialize_config`, `update_config`, and `execute_sale`.
+The program has 6 instructions: `register_proof`, `initialize_config`, `update_config`, `record_share_view`, `sign_nda`, and `execute_sale`.
 
 ### `register_proof`
 
@@ -59,6 +59,42 @@ Updates the treasury address and/or fee. Authority only.
 | `config` | PDA `["config"]` | Config account (mut, has_one = authority) |
 | `authority` | Signer | Admin wallet |
 
+### `record_share_view`
+
+Records a reader's agreement to view a shared note. The reader signs and pays rent. The note must already have an on-chain proof.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `share_id` | `[u8; 16]` | First 16 bytes of the share UUID |
+| `note_hash` | `[u8; 32]` | SHA-256 hash of the note (links to the existing NoteProof PDA) |
+
+**Accounts:**
+| Account | Type | Description |
+|---------|------|-------------|
+| `agreement` | PDA `["share", share_id, reader]` | ShareAgreement account (init) |
+| `proof` | PDA `["proof", note_hash]` | Existing NoteProof (read-only) |
+| `reader` | Signer, mut | Reader wallet (pays rent) |
+| `system_program` | Program | System program |
+
+### `sign_nda`
+
+Signs an NDA contract for a shared note. The note owner signs and pays rent. `has_one = owner` on the proof PDA ensures only the note author can approve the NDA. The reader's full name is hashed client-side before submission.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `share_id` | `[u8; 16]` | First 16 bytes of the share UUID |
+| `note_hash` | `[u8; 32]` | SHA-256 hash of the note |
+| `name_hash` | `[u8; 32]` | SHA-256 hash of the reader's typed name |
+
+**Accounts:**
+| Account | Type | Description |
+|---------|------|-------------|
+| `nda_contract` | PDA `["nda", share_id, reader]` | NdaContract account (init) |
+| `proof` | PDA `["proof", note_hash]` | Existing NoteProof (`has_one = owner`) |
+| `owner` | Signer, mut | Note owner (pays rent) |
+| `reader` | AccountInfo | Reader wallet (not a signer) |
+| `system_program` | Program | System program |
+
 ### `execute_sale`
 
 Executes a marketplace sale with atomic payment splitting. Sends (100% - fee) to seller and fee to treasury in a single transaction.
@@ -105,6 +141,33 @@ Uses checked arithmetic (`checked_mul`, `checked_sub`) for overflow protection.
 | `treasury` | Pubkey | 32 | Fee recipient wallet |
 | `fee_basis_points` | u16 | 2 | Fee percentage (200 = 2%) |
 | `bump` | u8 | 1 | PDA bump seed |
+
+### ShareAgreement (121 bytes + 8 discriminator)
+
+| Field | Type | Size | Description |
+|-------|------|------|-------------|
+| `owner` | Pubkey | 32 | Note owner who created the share |
+| `reader` | Pubkey | 32 | Wallet that viewed the note |
+| `note_hash` | [u8; 32] | 32 | SHA-256 hash linking to the NoteProof |
+| `share_id` | [u8; 16] | 16 | First 16 bytes of the share UUID |
+| `created_at` | i64 | 8 | Unix timestamp when the view was recorded |
+| `bump` | u8 | 1 | PDA bump seed |
+
+**PDA Seeds:** `[b"share", share_id, reader.as_ref()]`
+
+### NdaContract (153 bytes + 8 discriminator)
+
+| Field | Type | Size | Description |
+|-------|------|------|-------------|
+| `owner` | Pubkey | 32 | Note owner who approved the NDA |
+| `reader` | Pubkey | 32 | Reader wallet |
+| `note_hash` | [u8; 32] | 32 | SHA-256 hash linking to the NoteProof |
+| `share_id` | [u8; 16] | 16 | First 16 bytes of the share UUID |
+| `name_hash` | [u8; 32] | 32 | SHA-256 hash of the reader's typed name |
+| `created_at` | i64 | 8 | Unix timestamp when the NDA was signed |
+| `bump` | u8 | 1 | PDA bump seed |
+
+**PDA Seeds:** `[b"nda", share_id, reader.as_ref()]`
 
 ## Error Codes
 

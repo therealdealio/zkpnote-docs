@@ -47,6 +47,11 @@ Both seed phrase and Phantom modes produce the **same encryption key and auth ke
 - Locking the vault clears all key material from memory
 - Page refresh requires re-entering the seed phrase or reconnecting Phantom
 
+### Account Records
+- Every wallet that unlocks the app is auto-registered in the `accounts` table with a deterministic username (`phantom_<hash>` or `user_<hash>`) derived from `SHA-256(wallet_address)` — no private data is written
+- Seed-phrase users can optionally **Link Account** to pick a custom username + email and store a password-encrypted copy of their seed (AES-GCM with PBKDF2, 100k iterations). This enables username/password login as an alternative to pasting the seed phrase.
+- Phantom users never have an `encrypted_seed` stored server-side (the column is nullable). Their account row holds only the username, wallet address, and optional email for news updates. Recovery always happens through the Phantom wallet itself.
+
 ### Phantom Signature Caching
 - The Phantom wallet signature used for key derivation is cached in `sessionStorage`
 - This avoids requiring a Phantom popup on every page refresh within the same session

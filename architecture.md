@@ -146,11 +146,24 @@ To avoid requiring users to approve a Phantom signature popup on every page load
 | Table | Description |
 |-------|-------------|
 | `vaults` | Encrypted vault blobs keyed by owner public key |
-| `listings` | Marketplace listings (price, seller, metadata, encrypted content) |
+| `listings` | Marketplace listings (price, seller, metadata, encrypted content, auction bids) |
 | `purchases` | Records of completed marketplace purchases |
-| `bids` | Open and accepted bids on marketplace listings |
-| `shares` | Shared note access grants between users |
+| `shares` | Shared note access grants with blockchain-backed agreement metadata |
+| `share_views` | On-chain view agreement records for standard shares |
+| `nda_requests` | Reader-submitted NDA requests awaiting owner approval |
 | `proofs` | Per-note proof records for public verification and similarity search |
+| `accounts` | Username/email/optional encrypted seed — one row per wallet, used for login and admin tracking |
+| `display_names` | Marketplace display name reservations (one per wallet, globally unique) |
+| `seed_tokens` | One-time links for revealing encrypted seed phrases via email |
+
+### Account Tracking
+
+Every wallet that unlocks ZKPnote — whether via seed phrase or Phantom — is auto-registered in the `accounts` table on unlock with a deterministic username derived from `SHA-256(wallet_address)`:
+
+- `phantom_<first 12 hex chars>` for Phantom-connected wallets
+- `user_<first 12 hex chars>` for seed-phrase wallets that haven't chosen a custom username
+
+This gives the admin page a single source of truth for every active wallet without exposing any private data. Phantom users have no `encrypted_seed` stored (the column is nullable); seed-phrase users optionally upgrade to a chosen username + password via the Link Account flow.
 
 ## Folder Structure (Application)
 
@@ -180,7 +193,7 @@ onchain/
 
 packages/
   mcp-server/       # MCP server for AI agent integration
-    src/index.ts    # 15 tools: vault CRUD, marketplace, proofs, verify, search
+    src/index.ts    # 16 tools: vault CRUD (incl. batch save), marketplace, proofs, verify, search
 ```
 
 ## MCP Server
@@ -193,12 +206,13 @@ ZKPnote includes a Model Context Protocol (MCP) server that enables AI assistant
 - **Key derivation:** Same HKDF path as the main app — derives encryption and auth keys from `ZKPNOTE_SEED_PHRASE` env var
 - **API target:** `https://zkpnote.com` by default (configurable via `ZKPNOTE_API_URL`)
 
-### Available Tools (15)
+### Available Tools (16)
 
 **Vault**
 | Tool | Description |
 |------|-------------|
 | `save_note` | Create a new encrypted note |
+| `save_notes` | Save multiple notes in a single batch — one vault pull + push for the whole set (much faster than repeated `save_note` calls) |
 | `list_notes` | List all notes in the vault |
 | `read_note` | Read and decrypt a specific note |
 | `update_note` | Update an existing note |

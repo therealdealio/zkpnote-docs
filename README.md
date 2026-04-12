@@ -9,6 +9,7 @@ Technical documentation for developers building on or integrating with ZKPnote.
 - [Architecture Overview](./architecture.md)
 - [Smart Contract Reference](./smart-contract.md)
 - [Marketplace API](./marketplace-api.md)
+- [MCP Server Setup](./mcp-server.md)
 - [Security Model](./security.md)
 
 ## Tech Stack
