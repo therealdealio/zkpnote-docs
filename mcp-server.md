@@ -2,7 +2,7 @@
 
 The ZKPnote MCP (Model Context Protocol) server lets AI agents like Claude read, write, search, and verify notes in your encrypted vault. Your seed phrase stays local — all encryption happens on your machine before anything touches the network.
 
-**Live deployment:** [zkpnote.vercel.app](https://zkpnote.vercel.app) (Solana devnet)
+**Live deployment:** [www.zkpnote.com](https://www.zkpnote.com) (Solana devnet)
 
 ## What You Can Do
 
@@ -19,7 +19,7 @@ Once connected, ask Claude things like:
 ## Prerequisites
 
 - **Node.js 18+** — [nodejs.org](https://nodejs.org)
-- **A ZKPnote account** — Create one at [zkpnote.vercel.app](https://zkpnote.vercel.app) using a seed phrase (not Phantom)
+- **A ZKPnote account** — Create one at [www.zkpnote.com](https://www.zkpnote.com) using a seed phrase (not Phantom)
 - **Claude Desktop** or **Claude Code** — The MCP server works with any MCP-compatible client
 
 > **Important:** The MCP server uses your **seed phrase** for encryption. If you created your vault with Phantom, you'll need to create a separate seed-phrase vault or use Phantom for browser and seed phrase for MCP.
@@ -53,7 +53,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
       "args": ["/absolute/path/to/zkpnote/packages/mcp-server/build/index.js"],
       "env": {
         "ZKPNOTE_SEED_PHRASE": "your twelve word seed phrase goes here",
-        "ZKPNOTE_API_URL": "https://zkpnote.vercel.app"
+        "ZKPNOTE_API_URL": "https://www.zkpnote.com"
       }
     }
   }
@@ -72,7 +72,7 @@ Edit `~/.claude/settings.json`:
       "args": ["/absolute/path/to/zkpnote/packages/mcp-server/build/index.js"],
       "env": {
         "ZKPNOTE_SEED_PHRASE": "your twelve word seed phrase goes here",
-        "ZKPNOTE_API_URL": "https://zkpnote.vercel.app"
+        "ZKPNOTE_API_URL": "https://www.zkpnote.com"
       }
     }
   }
@@ -91,7 +91,7 @@ Open Settings (`Cmd+,`) > search "Claude MCP" > edit `settings.json`, or add to 
       "args": ["/absolute/path/to/zkpnote/packages/mcp-server/build/index.js"],
       "env": {
         "ZKPNOTE_SEED_PHRASE": "your twelve word seed phrase goes here",
-        "ZKPNOTE_API_URL": "https://zkpnote.vercel.app"
+        "ZKPNOTE_API_URL": "https://www.zkpnote.com"
       }
     }
   }
@@ -113,7 +113,7 @@ Ask Claude: **"List my ZKPnote notes"**. You should see your vault contents.
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `ZKPNOTE_SEED_PHRASE` | Yes* | — | Your 12-word BIP-39 seed phrase |
-| `ZKPNOTE_API_URL` | No | `https://zkpnote.com` | ZKPnote API URL (use `https://zkpnote.vercel.app` for devnet) |
+| `ZKPNOTE_API_URL` | No | `https://zkpnote.com` | ZKPnote API URL (use `https://www.zkpnote.com` for devnet) |
 
 \* Verify and search tools work without a seed phrase (read-only access to public proofs).
 
@@ -157,13 +157,87 @@ Ask Claude: **"List my ZKPnote notes"**. You should see your vault contents.
 | `build_knowledge_graph` | Index all notes into a searchable graph with summaries, tags, and relationships |
 | `query_knowledge_graph` | Find relevant notes by keyword, project, or tag without reading full content |
 
+## Remote HTTP Transport (Claude mobile / claude.ai web)
+
+Claude on iOS/Android and at claude.ai only accept **remote** connectors — they can't spawn a local stdio process. ZKPnote ships a matching remote transport at `POST /api/mcp` that exposes the same tool handlers as the stdio server, backed by the same encrypted vault in Supabase.
+
+**Source:** `src/lib/mcpServer.ts` (factory `buildMcpServer({ seedPhrase, apiUrl })`) wired to `src/app/api/mcp/route.ts` via `WebStandardStreamableHTTPServerTransport` from `@modelcontextprotocol/sdk`.
+
+### Endpoint
+
+```
+POST https://www.zkpnote.com/api/mcp
+Authorization: Bearer <ZKPNOTE_MCP_TOKEN>
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+<JSON-RPC 2.0 body>
+```
+
+Mobile clients that can't set headers may pass the token as a query parameter instead: `?token=<ZKPNOTE_MCP_TOKEN>`.
+
+> Always use the `www.` subdomain. The apex `zkpnote.com` issues a 307 redirect to `www`, and most HTTP clients drop the `Authorization` header across the redirect — your request will return `Unauthorized: missing bearer token`.
+
+### Deployment requirements
+
+The remote endpoint is currently **single-tenant**: one seed phrase per Vercel deployment, gated by one shared-secret token. To run your own:
+
+1. Fork [`therealdealio/zkpnote`](https://github.com/therealdealio/zkpnote) and deploy to Vercel.
+2. Set three env vars (Production + Preview scopes):
+   - `ZKPNOTE_SEED_PHRASE` — the 12-word BIP-39 phrase for the vault this endpoint serves
+   - `ZKPNOTE_MCP_TOKEN` — a long random secret (`openssl rand -hex 32`)
+   - `ZKPNOTE_API_URL` = `https://www.zkpnote.com` (or your own deployment URL)
+3. Redeploy. The endpoint fails closed — if `ZKPNOTE_MCP_TOKEN` is unset, `POST /api/mcp` returns HTTP 500 `Server misconfigured` rather than silently accepting unauthenticated requests.
+
+### End-to-end test
+
+The repo ships `scripts/test-mcp-bot.mjs` — 26 assertions exercising tool discovery, CRUD, batch save, folder creation, and cleanup, marker-isolated so it leaves the vault in its original state.
+
+```bash
+MCP_URL=https://www.zkpnote.com/api/mcp \
+MCP_TOKEN=your_long_random_token \
+node scripts/test-mcp-bot.mjs
+```
+
+Preview deployments gated by Vercel Deployment Protection: add `VERCEL_BYPASS=<protection-bypass-secret>` as well and the bot will forward it as `x-vercel-protection-bypass`.
+
+### Available Tools (Remote — 15)
+
+Same set as stdio with the three marketplace-detail tools omitted (`get_listing`, `cancel_listing`, `marketplace_analytics`). Planned for a follow-up release.
+
+| Tool | Vault | Proofs | Market | KG |
+|------|:-----:|:-----:|:-----:|:-----:|
+| `save_note`, `save_notes`, `list_notes`, `read_note`, `update_note`, `delete_note`, `reorder_notes`, `list_folders` | ✓ | | | |
+| `verify_content`, `search_similar`, `list_proofs`, `recover_note` | | ✓ | | |
+| `browse_marketplace` | | | ✓ | |
+| `build_knowledge_graph`, `query_knowledge_graph` | | | | ✓ |
+
+### Claude client setup (remote)
+
+**Claude mobile (iOS / Android):**
+1. Settings → Connectors → **Add custom connector**
+2. Name: `ZKPnote`
+3. URL: `https://www.zkpnote.com/api/mcp?token=YOUR_TOKEN`
+4. Enable for chat, then ask "What tools do you have from ZKPnote?"
+
+**claude.ai web:** Settings → Connectors → **Add custom connector** → same URL.
+
 ## Security Model
 
+### Stdio transport
 - **Seed phrase never leaves your machine.** It's used only by the local MCP server process to derive encryption keys.
 - **All note content is encrypted with XChaCha20-Poly1305** before being sent to the ZKPnote API.
 - **The server communicates over HTTPS** with the ZKPnote backend.
 - **No data is written to disk** by the MCP server — everything runs in memory.
 - **The API URL is the only external endpoint** the server contacts.
+
+### Remote HTTP transport
+- **Seed phrase is server-side** (Vercel env var) — you're trusting your hosting provider with key material the way any self-hosted app with a master secret does.
+- **Bearer token (`ZKPNOTE_MCP_TOKEN`) gates every request** — there is no session; auth is checked per-request.
+- **HTTPS only** — enforced by Vercel.
+- **Token rotation** — change the env var, redeploy, update the connector URL in each Claude client.
+- **Fail closed** — a deployment missing `ZKPNOTE_MCP_TOKEN` returns HTTP 500 rather than allowing anonymous access.
+- Note: per-user authentication and rate limiting on `/api/mcp` are roadmap items; today the endpoint is a single-tenant shared-secret model.
 
 ## Troubleshooting
 
